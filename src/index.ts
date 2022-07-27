@@ -11,16 +11,16 @@ const cacheDir = rootDir + "/.imgcache";
 app.use('/.imgcache', express.static(cacheDir));
 
 async function responseFile(res: any, absPath: string, relPath: string) {
-  const dirname = relPath.replace(/^[^\/]+$|\/[^\/]+$/, "");
+  const dirname = relPath.replace(/\/[^\/]+$/, "");
   await fsPromises.mkdir(`${cacheDir}/displaysize/${dirname}`, {recursive: true});
   try {
-    await fsPromises.stat(`${cacheDir}/displaysize/${relPath}`);
-    console.log(`cache exist ${cacheDir}/displaysize/${relPath}`);
+    await fsPromises.stat(`${cacheDir}/displaysize${relPath}`);
+    console.log(`cache exist ${cacheDir}/displaysize${relPath}`);
   } catch {
-    console.log(`cache generating ${cacheDir}/displaysize/${relPath}`);
-    await sharp(`${rootDir}/${relPath}`).resize(1536, undefined, {withoutEnlargement: true}).toFile(`${cacheDir}/displaysize/${relPath}`);
+    console.log(`cache generating ${cacheDir}/displaysize${relPath}`);
+    await sharp(`${rootDir}${relPath}`).resize(1536, undefined, {withoutEnlargement: true}).toFile(`${cacheDir}/displaysize${relPath}`);
   }
-  res.send(`<html><body style="margin: 0;"><img src="/.imgcache/displaysize/${relPath}" style="width: 100%"></body></html>`);
+  res.send(`<html><body style="margin: 0;"><img src="/.imgcache/displaysize${relPath}" style="width: 100%"></body></html>`);
 }
 
 async function responseDirectory(res: any, absPath: string, relPath: string) {
@@ -28,22 +28,22 @@ async function responseDirectory(res: any, absPath: string, relPath: string) {
   let html = `<html><body style="margin: 0;"><a href="..">..</a><br>`;
   const dirBasenames: string[] = [];
   const fileBasenames: string[] = [];
-  await fsPromises.mkdir(`${cacheDir}/thumbnail/${relPath}`, {recursive: true});
+  await fsPromises.mkdir(`${cacheDir}/thumbnail${relPath}`, {recursive: true});
   for (const ent of dirents) {
     if (ent.isDirectory()) {
       dirBasenames.push(ent.name);
-      html += `DIR <a href="${ent.name}">${ent.name}</a><br>`;
+      html += `DIR <a href="${relPath}/${ent.name}">${ent.name}</a><br>`;
     } else if (ent.isFile()) {
       if (/\.jpg|\.jpeg|\.png/i.test(ent.name)) {
         const imgRelPath = `${relPath}/${ent.name}`;
         try {
-          await fsPromises.stat(`${cacheDir}/thumbnail/${imgRelPath}`);
-          console.log(`cache exist ${cacheDir}/thumbnail/${imgRelPath}`);
+          await fsPromises.stat(`${cacheDir}/thumbnail${imgRelPath}`);
+          console.log(`cache exist ${cacheDir}/thumbnail${imgRelPath}`);
         } catch {
-          console.log(`cache generating ${cacheDir}/thumbnail/${imgRelPath}`);
-          await sharp(`${rootDir}/${imgRelPath}`).resize(160, 120, {fit: "inside"}).toFile(`${cacheDir}/thumbnail/${imgRelPath}`);
+          console.log(`cache generating ${cacheDir}/thumbnail${imgRelPath}`);
+          await sharp(`${rootDir}${imgRelPath}`).resize(160, 120, {fit: "inside"}).toFile(`${cacheDir}/thumbnail${imgRelPath}`);
         }
-        html += `<a href="${ent.name}"><img src="/.imgcache/thumbnail/${imgRelPath}"><br>${ent.name}</a><br>`;
+        html += `<a href="${relPath}/${ent.name}"><img src="/.imgcache/thumbnail${imgRelPath}"><br>${ent.name}</a><br>`;
         fileBasenames.push(ent.name);
       }
     }
@@ -52,10 +52,15 @@ async function responseDirectory(res: any, absPath: string, relPath: string) {
   res.send(html);
 }
 
-app.get(/^\/(.*)/, async (req, res) => {
+app.get(/^(\/.*)/, async (req, res) => {
   try {
-    const relPath = req.params[0];
-  const filePath = `${rootDir}/${relPath}`; // トラバーサル対策してない
+    
+    let relPath = req.params[0];
+    if (relPath === "/") {
+      relPath = "/.";
+    }
+    console.log(relPath);
+  const filePath = `${rootDir}${relPath}`; // トラバーサル対策してない
 
   const stat = await fsPromises.stat(filePath);
   if (stat.isDirectory()) {
