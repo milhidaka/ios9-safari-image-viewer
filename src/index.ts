@@ -25,14 +25,26 @@ async function responseFile(res: any, absPath: string, relPath: string) {
 
 async function responseDirectory(res: any, absPath: string, relPath: string) {
   const dirents = await fsPromises.readdir(absPath, {withFileTypes: true});
-  let html = `<html><body style="margin: 0;"><a href="..">..</a><br>`;
+  let html = `<html>
+<head>
+<style type="text/css">
+.item {
+  display: inline-block;
+  padding: 4px;
+}
+</style>
+</head>
+  <body style="margin: 0;"><a href="..">..</a><br>`;
   const dirBasenames: string[] = [];
   const fileBasenames: string[] = [];
   await fsPromises.mkdir(`${cacheDir}/thumbnail${relPath}`, {recursive: true});
   for (const ent of dirents) {
+    if (ent.name.startsWith(".")) {
+      continue;
+    }
     if (ent.isDirectory()) {
       dirBasenames.push(ent.name);
-      html += `DIR <a href="${relPath}/${ent.name}">${ent.name}</a><br>`;
+      html += `<div class="item"><a href="${relPath}/${ent.name}">${ent.name}</a></div>`;
     } else if (ent.isFile()) {
       if (/\.jpg|\.jpeg|\.png/i.test(ent.name)) {
         const imgRelPath = `${relPath}/${ent.name}`;
@@ -43,7 +55,7 @@ async function responseDirectory(res: any, absPath: string, relPath: string) {
           console.log(`cache generating ${cacheDir}/thumbnail${imgRelPath}`);
           await sharp(`${rootDir}${imgRelPath}`).resize(160, 120, {fit: "inside"}).toFile(`${cacheDir}/thumbnail${imgRelPath}`);
         }
-        html += `<a href="${relPath}/${ent.name}"><img src="/.imgcache/thumbnail${imgRelPath}"><br>${ent.name}</a><br>`;
+        html += `<div class="item"><a href="${relPath}/${ent.name}"><img src="/.imgcache/thumbnail${imgRelPath}"><br>${ent.name}</a></div>`;
         fileBasenames.push(ent.name);
       }
     }
